@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from functools import wraps
+from loguru import logger
 
 
 class ANNApi:
@@ -10,11 +11,22 @@ class ANNApi:
         self._base_endpoint = "https://www.animenewsnetwork.com"
 
     @staticmethod
+    def _logger(function):
+        @wraps(function)
+        def inner(*args, **kwargs):
+            logger.info(f"{function.__name__} has been called")
+            return function(*args, **kwargs)
+
+        return inner
+
+    @staticmethod
     def _try_except_na(function):
-        def inner():
+        @wraps(function)
+        def inner(*args, **kwargs):
             try:
-                return function()
+                return function(*args, **kwargs)
             except AttributeError:
+                logger.info(f"{function.__name__} function returns n/a")
                 return "n/a"
 
         return inner
@@ -29,7 +41,9 @@ class ANNApi:
     @staticmethod
     def _get_request(endpoint, params):
         request = requests.get(endpoint, params)
-        return request.text, request.status_code
+        status_code = request.status_code
+        logger.info(f"request sent to {endpoint}, with status code {status_code}")
+        return request.text, status_code
 
     def search_anime_by_name(self, name):
         params = {
@@ -80,8 +94,9 @@ class ANNApi:
         return self._format_to_return(request_status, clean_data_list)
 
     def get_anime_details_by_id(self, ann_id):
-
+        # ========================== Functions ========================== #
         @self._try_except_na
+        @self._logger
         def get_main_title():
             #       --- main title ---
             title_div = soup.find(id="page_header")
@@ -89,6 +104,7 @@ class ANNApi:
             return title_text
 
         @self._try_except_na
+        @self._logger
         def get_alt_titles():
             #       --- alternative titles ---
             alt_titles_parent_div = soup.find(id="infotype-2")
@@ -100,6 +116,7 @@ class ANNApi:
             return all_alt_titles_list
 
         @self._try_except_na
+        @self._logger
         def get_related_anime():
             #         --- related anime ---
             related_parent_div = soup.find(id="infotype-related")
@@ -115,6 +132,7 @@ class ANNApi:
             return all_related_anime_list
 
         @self._try_except_na
+        @self._logger
         def get_anime_genre():
             #         --- anime genre ---
             genres_parent_div = soup.find(id="infotype-30")
@@ -126,6 +144,7 @@ class ANNApi:
             return anime_genre_list
 
         @self._try_except_na
+        @self._logger
         def get_anime_theme():
             #         --- anime themes ---
             themes_parent_div = soup.find(id="infotype-31")
@@ -137,6 +156,7 @@ class ANNApi:
             return anime_theme_list
 
         @self._try_except_na
+        @self._logger
         def get_plot_sum():
             #        --- anime plot summary ---
             plot_sum_parent_div = soup.find(id="infotype-12")
@@ -145,15 +165,20 @@ class ANNApi:
             return plot_sum
 
         @self._try_except_na
+        @self._logger
         def get_cover_url():
             #        --- cover image ---
             cover_image_parent_div = soup.find(class_="fright")
-            proper_image = cover_image_parent_div.find('img').get('src').replace('fit200x200', 'max500x600')
-            cover_image_url = f"https:{proper_image}"
+            if cover_image_parent_div is not None:
+                proper_image = cover_image_parent_div.find('img').get('src').replace('fit200x200', 'max500x600')
+            else:
+                proper_image = soup.find(id="vid-art").get("src")
 
+            cover_image_url = f"https:{proper_image}"
             return cover_image_url
 
         @self._try_except_na
+        @self._logger
         def get_all_episodes():
             def format_date(table_row):
                 date_released_list = table_row.find("td").find("div").text.split("-")
@@ -171,13 +196,33 @@ class ANNApi:
             episode_list = []
             for tr in all_trs:
                 date_released = format_date(tr)
-                episode_number = tr.find_all("td")[1].text.strip().replace(".", "")
-                # TODO: GET EPISODE NAME
+                all_tds = tr.find_all("td")
+                episode_number = all_tds[1].text.strip().replace(".", "")
+                episode_name = all_tds[3].find("div").text
+
+                alt_episodes_name = []
+                # Get all divs in the tr except the first one
+                alt_episode_name_div_list = all_tds[3].find_all("div")[1:]
+                if len(alt_episode_name_div_list) != 0:
+                    for div in alt_episode_name_div_list:
+                        for alt_div in div:
+                            stripped_text = alt_div.text.strip()
+                            if stripped_text != "":
+                                alt_episodes_name.append(stripped_text)
+
                 # TODO: PLACE ALL DATA IN JSON THE APPEND TO 'episode_list'
+                data_json = {
+                    "date_released": date_released,
+                    "episode_number": episode_number,
+                    "episode_name": {
+                        "main": episode_name,
+                        "alt": alt_episodes_name
+                    }
+                }
+                episode_list.append(data_json)
+            return episode_list
 
-        # ============================================================================================================ #
-        # ============================================================================================================ #
-
+        # =============================================================== #
         endpoint = f"{self._details_endpoint}/anime.php"
         params = {
             "id": ann_id,
@@ -196,6 +241,7 @@ class ANNApi:
         all_episodes = get_all_episodes()
 
         final_data = {
+            "cover_url": cover_url,
             "title": {
                 "main": main_title,
                 "alt": alt_titles,
@@ -204,109 +250,6 @@ class ANNApi:
             "genre": anime_genre,
             "theme": anime_theme,
             "plot_sum": plot_summary,
-            "cover_url": cover_url,
+            "episodes": all_episodes
         }
         return self._format_to_return(request_status, final_data)
-
-    # def get_manga_details_by_id(self, ann_id):
-    #
-    #     @self._try_except_na
-    #     def get_main_title():
-    #         #       --- main title ---
-    #         title_div = soup.find(id="page_header")
-    #         title_text = title_div.text.strip()
-    #         return title_text
-    #
-    #     @self._try_except_na
-    #     def get_alt_titles():
-    #         #       --- alternative titles ---
-    #         alt_titles_parent_div = soup.find(id="infotype-2")
-    #         alt_titles_child_divs = alt_titles_parent_div.find_all("div")
-    #         all_alt_titles_list = []
-    #         for div in alt_titles_child_divs:
-    #             all_alt_titles_list.append(div.text)
-    #
-    #         return all_alt_titles_list
-    #
-    #     @self._try_except_na
-    #     def get_related_manga():
-    #         #         --- related anime ---
-    #         related_parent_div = soup.find(id="infotype-related")
-    #         related_child_divs = related_parent_div.find_all("a")
-    #         all_related_manga_list = []
-    #         for anchor in related_child_divs:
-    #             all_related_manga_list.append(
-    #                 {
-    #                     "title": anchor.text,
-    #                     "ann-id": str(anchor.get("href")).split("?id=")[1]
-    #                 }
-    #             )
-    #         return all_related_manga_list
-    #
-    #     @self._try_except_na
-    #     def get_manga_genre():
-    #         #         --- anime genre ---
-    #         genres_parent_div = soup.find(id="infotype-30")
-    #         genres_child_divs = genres_parent_div.find_all("a")
-    #         manga_genre_list = []
-    #         for anchor in genres_child_divs:
-    #             manga_genre_list.append(anchor.text)
-    #
-    #         return manga_genre_list
-    #
-    #     @self._try_except_na
-    #     def get_manga_theme():
-    #         #         --- anime themes ---
-    #         themes_parent_div = soup.find(id="infotype-31")
-    #         themes_child_divs = themes_parent_div.find_all("a")
-    #         manga_theme_list = []
-    #         for anchor in themes_child_divs:
-    #             manga_theme_list.append(anchor.text)
-    #
-    #         return manga_theme_list
-    #
-    #     @self._try_except_na
-    #     def get_description():
-    #         #        --- anime plot summary ---
-    #         plot_sum_parent_div = soup.find(id="infotype-12")
-    #         plot_sum = plot_sum_parent_div.find("span").text
-    #
-    #         return plot_sum
-    #
-    #     @self._try_except_na
-    #     def get_cover_url():
-    #         #        --- cover image ---
-    #         cover_image_parent_div = soup.find(class_="fright")
-    #         proper_image = cover_image_parent_div.find('img').get('src').replace('fit200x200', 'max500x600')
-    #         cover_image_url = f"https:{proper_image}"
-    #
-    #         return cover_image_url
-    #
-    #     endpoint = f"{self._details_endpoint}/manga.php"
-    #     params = {
-    #         "id": ann_id,
-    #     }
-    #
-    #     html_site, request_status = self._get_request(endpoint, params)
-    #     soup = BeautifulSoup(html_site, "html.parser")
-    #
-    #     main_title = get_main_title()
-    #     alt_titles = get_alt_titles()
-    #     related_manga = get_related_manga()
-    #     manga_genre = get_manga_genre()
-    #     manga_theme = get_manga_theme()
-    #     plot_summary = get_description()
-    #     cover_url = get_cover_url()
-    #
-    #     final_data = {
-    #         "title": {
-    #             "main": main_title,
-    #             "alt": alt_titles,
-    #         },
-    #         "related": related_manga,
-    #         "genre": manga_genre,
-    #         "theme": manga_theme,
-    #         "plot_sum": plot_summary,
-    #         "cover_url": cover_url,
-    #     }
-    #     return self._format_to_return(request_status, final_data)
