@@ -207,8 +207,8 @@ class AMSApi(ApiBase):
                         splited_text = release_text.split(". ")
                         data_json = {
                             "date_released": "n/a",
-                            "episode_number": splited_text[0].replace("#", ""),
-                            "episode_name": {
+                            "release_number": splited_text[0].replace("#", ""),
+                            "release_name": {
                                 "main": splited_text[1],
                                 "alt": "n/a"
                             }
@@ -239,18 +239,18 @@ class AMSApi(ApiBase):
                                     final_all_volumes.append(volume_title)
                     return final_all_volumes
             else:
-                episode_list = []
+                release_list = []
                 for tr in all_trs:
                     date_released = format_date(tr)
                     all_tds = tr.find_all("td")
-                    episode_number = all_tds[1].text.strip().replace(".", "")
-                    episode_name = all_tds[3].find("div").text
+                    release_number = all_tds[1].text.strip().replace(".", "")
+                    release_name = all_tds[3].find("div").text
 
                     alt_releases_name = []
                     # Get all divs in the tr except the first one
-                    alt_episode_name_div_list = all_tds[3].find_all("div")[1:]
-                    if len(alt_episode_name_div_list) != 0:
-                        for div in alt_episode_name_div_list:
+                    alt_release_name_div_list = all_tds[3].find_all("div")[1:]
+                    if len(alt_release_name_div_list) != 0:
+                        for div in alt_release_name_div_list:
                             for alt_div in div:
                                 stripped_text = alt_div.text.strip()
                                 if stripped_text != "":
@@ -258,14 +258,14 @@ class AMSApi(ApiBase):
 
                     data_json = {
                         "date_released": date_released,
-                        "episode_number": episode_number,
-                        "episode_name": {
-                            "main": episode_name,
+                        "release_number": release_number,
+                        "release_name": {
+                            "main": release_name,
                             "alt": alt_releases_name
                         }
                     }
-                    episode_list.append(data_json)
-                return episode_list
+                    release_list.append(data_json)
+                return release_list
 
         # =============================================================== #
         endpoint = f"{self._ann_details_endpoint}/anime.php"

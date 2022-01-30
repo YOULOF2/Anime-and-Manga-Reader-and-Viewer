@@ -68,7 +68,3 @@ class ApiBase:
         logger.info(f"request sent to {endpoint}, with status code {status_code}")
         request.raise_for_status()
         return request.text, status_code
-
-    @staticmethod
-    def _make_soup(html):
-        return BeautifulSoup(html, "html.parser")
