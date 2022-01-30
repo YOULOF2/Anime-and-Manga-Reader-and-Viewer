@@ -1,3 +1,5 @@
+import re
+
 from bs4 import BeautifulSoup
 from backend.ApiBase import ApiBase
 from loguru import logger
@@ -191,34 +193,79 @@ class AMSApi(ApiBase):
             releases_html_page, _ = self._get_request(endpoint, params=params_)
             soup = BeautifulSoup(releases_html_page, "html.parser")
             releases_table = soup.find("table", class_="episode-list")
-            all_trs = releases_table.find_all("tr")
-            episode_list = []
-            for tr in all_trs:
-                date_released = format_date(tr)
-                all_tds = tr.find_all("td")
-                episode_number = all_tds[1].text.strip().replace(".", "")
-                episode_name = all_tds[3].find("div").text
-
-                alt_releases_name = []
-                # Get all divs in the tr except the first one
-                alt_episode_name_div_list = all_tds[3].find_all("div")[1:]
-                if len(alt_episode_name_div_list) != 0:
-                    for div in alt_episode_name_div_list:
-                        for alt_div in div:
-                            stripped_text = alt_div.text.strip()
-                            if stripped_text != "":
-                                alt_releases_name.append(stripped_text)
-
-                data_json = {
-                    "date_released": date_released,
-                    "episode_number": episode_number,
-                    "episode_name": {
-                        "main": episode_name,
-                        "alt": alt_releases_name
+            try:
+                all_trs = releases_table.find_all("tr")
+            except AttributeError:
+                main_html, _ = self._get_request(endpoint, params={"id": ann_id})
+                soup = BeautifulSoup(main_html, "html.parser")
+                volumes_table = soup.find(id="infotype-20")
+                if volumes_table is not None:
+                    volume_divs = volumes_table.find_all("div")
+                    all_releases = []
+                    for release in volume_divs:
+                        release_text = release.text
+                        splited_text = release_text.split(". ")
+                        data_json = {
+                            "date_released": "n/a",
+                            "episode_number": splited_text[0].replace("#", ""),
+                            "episode_name": {
+                                "main": splited_text[1],
+                                "alt": "n/a"
+                            }
+                        }
+                        all_releases.append(data_json)
+                    return all_releases
+                else:
+                    params = {
+                        "id": ann_id,
+                        "page": 28,
                     }
-                }
-                episode_list.append(data_json)
-            return episode_list
+                    date_released_html, _ = self._get_request(endpoint, params=params)
+                    soup = BeautifulSoup(date_released_html, "html.parser")
+                    dates_table = soup.find(id="infotype-28")
+                    all_releases = dates_table.find_all("div")
+                    volume_lists = []
+                    for volume in all_releases:
+                        volume_lists.append(volume.text.split(" (")[1].replace(")", ""))
+
+                    final_all_volumes = []
+                    result = [e for e in re.split("[^0-9]", " ".join(volume_lists)) if e != '']
+                    max_vol_number = max(map(int, result))
+                    main_region = volume_lists[0].split(" ")[0]
+                    for volume_title in volume_lists:
+                        if main_region in volume_title:
+                            for volume_num in range(max_vol_number + 1):
+                                if str(volume_num) in volume_title:
+                                    final_all_volumes.append(volume_title)
+                    return final_all_volumes
+            else:
+                episode_list = []
+                for tr in all_trs:
+                    date_released = format_date(tr)
+                    all_tds = tr.find_all("td")
+                    episode_number = all_tds[1].text.strip().replace(".", "")
+                    episode_name = all_tds[3].find("div").text
+
+                    alt_releases_name = []
+                    # Get all divs in the tr except the first one
+                    alt_episode_name_div_list = all_tds[3].find_all("div")[1:]
+                    if len(alt_episode_name_div_list) != 0:
+                        for div in alt_episode_name_div_list:
+                            for alt_div in div:
+                                stripped_text = alt_div.text.strip()
+                                if stripped_text != "":
+                                    alt_releases_name.append(stripped_text)
+
+                    data_json = {
+                        "date_released": date_released,
+                        "episode_number": episode_number,
+                        "episode_name": {
+                            "main": episode_name,
+                            "alt": alt_releases_name
+                        }
+                    }
+                    episode_list.append(data_json)
+                return episode_list
 
         # =============================================================== #
         endpoint = f"{self._ann_details_endpoint}/anime.php"
