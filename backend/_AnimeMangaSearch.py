@@ -1,18 +1,15 @@
 import re
-
 from bs4 import BeautifulSoup
-from backend.ApiBase import ApiBase
+from backend._ApiBase import ApiBase
 from loguru import logger
-import requests
 
 
-class AMSApi(ApiBase):
+class _AnimeMangaSearch(ApiBase):
     def __init__(self):
         super().__init__()
         self._ann_search_endpoint = "https://www.animenewsnetwork.com/encyclopedia/search/name"
         self._ann_details_endpoint = "https://www.animenewsnetwork.com/encyclopedia"
         self._ann_base_endpoint = "https://www.animenewsnetwork.com"
-        self._readmanganato_base_endpoint = "https://readmanganato.com/"
         self._type = None
 
     # ===== Private methods ==== #
@@ -20,19 +17,6 @@ class AMSApi(ApiBase):
         if self._type == "anime":
             return True
         return False
-
-    def _return_manga_id(self, manga_name: str):
-        raw_name = manga_name.replace(" (manga)", "")
-        formatted_manga_name = raw_name.replace(" ", "_")
-        endpoint = f"{self._readmanganato_base_endpoint}search/story/{formatted_manga_name}"
-        html_site, status_code = self._get_request(endpoint)
-        soup = BeautifulSoup(html_site, "html.parser")
-        manga_details_div = soup.find_all("div", class_="search-story-item")
-        for manga_search_item in manga_details_div:
-            item_manga_name = manga_search_item.find("a", class_="item-title").text
-            if raw_name.title() == item_manga_name.title():
-                item_manga_id = manga_search_item.find("a", class_="item-title").get("href").split("-")[1]
-                return item_manga_id
 
     # ===== Public methods ===== #
     def search_anime_by_name(self, name):
@@ -314,8 +298,5 @@ class AMSApi(ApiBase):
             "plot_sum": plot_summary,
             "releases": all_releases
         }
-
-        if not self._is_anime():
-            final_data["manga_id"] = self._return_manga_id(main_title)
 
         return self._format_to_return(request_status, final_data)

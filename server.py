@@ -1,10 +1,14 @@
-import sys
-from backend.AnimeMangaSearch import AMSApi
-from backend.MangaCollectorApi import MangaCollectorApi
-from loguru import logger
+from backend import search_anime_by_name, get_anime_or_manga_by_ams_id
+import langid
 
-annApi = AMSApi()
-# print(annApi.search_manga_by_name("Black Clover"))
-print(annApi.get_media_details_by_id(17059))
-# print(MangaCollectorApi().search_for_manga_by_name("Black Clover"))
+anime_details = get_anime_or_manga_by_ams_id(10216)
+payload = anime_details.get("payload")
+titles = payload.get("title")
+alt_titles = titles.get("alt")
+for alt in alt_titles:
+    if "(Japanese)" in alt:
+        text = alt.split("(Japanese)")[0]
+        lang_detection = langid.classify(text)[0]
+        if not lang_detection == "ja":
+            print(text)
 
