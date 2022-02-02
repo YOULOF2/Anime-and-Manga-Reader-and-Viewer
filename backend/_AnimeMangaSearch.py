@@ -1,7 +1,6 @@
 import re
-from bs4 import BeautifulSoup
 from backend._ApiBase import ApiBase
-from loguru import logger
+from backend.utilities import *
 
 
 class _AnimeMangaSearch(ApiBase):
@@ -24,8 +23,8 @@ class _AnimeMangaSearch(ApiBase):
             "only": "anime",
             "q": name
         }
-        html_site, status_code = self._get_request(self._ann_search_endpoint, params=params)
-        soup = BeautifulSoup(html_site, "html.parser")
+        html_site, status_code = get_request(self._ann_search_endpoint, params=params)
+        soup = soupify(html_site)
         content_zone = soup.find(id="content-zone")
         all_anchors = content_zone.find_all("a")
 
@@ -48,8 +47,8 @@ class _AnimeMangaSearch(ApiBase):
             "only": "manga",
             "q": name
         }
-        html_site, request_status = self._get_request(self._ann_search_endpoint, params=params)
-        soup = BeautifulSoup(html_site, "html.parser")
+        html_site, request_status = get_request(self._ann_search_endpoint, params=params)
+        soup = soupify(html_site)
         content_zone = soup.find(id="content-zone")
         all_anchors = content_zone.find_all("a")
 
@@ -70,7 +69,7 @@ class _AnimeMangaSearch(ApiBase):
     def get_media_details_by_id(self, ann_id):
         # ========================== Functions ========================== #
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_main_title():
             #       --- main title ---
             title_div = soup.find(id="page_header")
@@ -78,7 +77,7 @@ class _AnimeMangaSearch(ApiBase):
             return title_text
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_alt_titles():
             #       --- alternative titles ---
             alt_titles_parent_div = soup.find(id="infotype-2")
@@ -90,7 +89,7 @@ class _AnimeMangaSearch(ApiBase):
             return all_alt_titles_list
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_related_media():
             #         --- related media ---
             related_parent_div = soup.find(id="infotype-related")
@@ -106,7 +105,7 @@ class _AnimeMangaSearch(ApiBase):
             return all_related_media_list
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_media_genre():
             #         --- media genre ---
             genres_parent_div = soup.find(id="infotype-30")
@@ -118,7 +117,7 @@ class _AnimeMangaSearch(ApiBase):
             return media_genre_list
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_media_theme():
             #         --- media themes ---
             themes_parent_div = soup.find(id="infotype-31")
@@ -130,7 +129,7 @@ class _AnimeMangaSearch(ApiBase):
             return media_theme_list
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_plot_sum():
             #        --- media plot summary ---
             plot_sum_parent_div = soup.find(id="infotype-12")
@@ -139,7 +138,7 @@ class _AnimeMangaSearch(ApiBase):
             return plot_sum
 
         @self._try_except_na
-        @self._logger
+        @logger.catch
         def get_cover_url():
             #        --- cover image ---
             cover_image_parent_div = soup.find(class_="fright")
@@ -174,14 +173,14 @@ class _AnimeMangaSearch(ApiBase):
                     "page": 34
                 }
 
-            releases_html_page, _ = self._get_request(endpoint, params=params_)
-            soup = BeautifulSoup(releases_html_page, "html.parser")
+            releases_html_page, _ = get_request(endpoint, params=params_)
+            soup = soupify(releases_html_page)
             releases_table = soup.find("table", class_="episode-list")
             try:
                 all_trs = releases_table.find_all("tr")
             except AttributeError:
-                main_html, _ = self._get_request(endpoint, params={"id": ann_id})
-                soup = BeautifulSoup(main_html, "html.parser")
+                main_html, _ = get_request(endpoint, params={"id": ann_id})
+                soup = soupify(main_html)
                 volumes_table = soup.find(id="infotype-20")
                 if volumes_table is not None:
                     volume_divs = volumes_table.find_all("div")
@@ -204,8 +203,8 @@ class _AnimeMangaSearch(ApiBase):
                         "id": ann_id,
                         "page": 28,
                     }
-                    date_released_html, _ = self._get_request(endpoint, params=params)
-                    soup = BeautifulSoup(date_released_html, "html.parser")
+                    date_released_html, _ = get_request(endpoint, params=params)
+                    soup = soupify(date_released_html)
                     dates_table = soup.find(id="infotype-28")
                     all_releases = dates_table.find_all("div")
                     volume_lists = []
@@ -258,8 +257,8 @@ class _AnimeMangaSearch(ApiBase):
         }
         # Initially sends a get request to the site as an anime, if the name contains (manga),
         # the request is resent to get the correct information
-        html_site, request_status = self._get_request(endpoint, params=params)
-        soup = BeautifulSoup(html_site, "html.parser")
+        html_site, request_status = get_request(endpoint, params=params)
+        soup = soupify(html_site)
 
         main_title = get_main_title()
 
@@ -272,8 +271,8 @@ class _AnimeMangaSearch(ApiBase):
                 "id": ann_id,
             }
 
-            html_site, request_status = self._get_request(endpoint, params=params)
-            soup = BeautifulSoup(html_site, "html.parser")
+            html_site, request_status = get_request(endpoint, params=params)
+            soup = soupify(html_site)
 
             main_title = get_main_title()
 

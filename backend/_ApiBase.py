@@ -1,26 +1,10 @@
 from functools import wraps
-from loguru import logger
-import requests
-from bs4 import BeautifulSoup
+from backend.utilities import logger
 
 
 class ApiBase:
     # ===== Private methods ===== #
     # Decorators
-    @staticmethod
-    def _logger(function):
-        """
-        This is a wrapper function to log the use of the method being decorated
-        :param function:
-        :return function():
-        """
-        @wraps(function)
-        def inner(*args, **kwargs):
-            logger.info(f"{function.__name__} has been called")
-            return function(*args, **kwargs)
-
-        return inner
-
     @staticmethod
     def _try_except_na(function):
         """
@@ -29,6 +13,7 @@ class ApiBase:
         :param function:
         :return function():
         """
+
         @wraps(function)
         def inner(*args, **kwargs):
             try:
@@ -52,19 +37,3 @@ class ApiBase:
             "status": status,
             "payload": payload
         }
-
-    @staticmethod
-    def _get_request(endpoint, **kwargs):
-        """
-        Does a GET request to the inputted endpoint along with the params.
-        To return the html text and the request status code
-        :param endpoint:
-        :param params:
-        :return:
-        """
-        params = kwargs.get("params", None)
-        request = requests.get(endpoint, params)
-        status_code = request.status_code
-        logger.info(f"request sent to {endpoint}, with status code {status_code}")
-        request.raise_for_status()
-        return request.text, status_code

@@ -1,9 +1,9 @@
 from backend._ApiBase import ApiBase
-from bs4 import BeautifulSoup
 import requests
 import zipfile
 import os
 from pathlib import Path
+from backend.utilities import *
 
 
 class _MangaCollector(ApiBase):
@@ -15,8 +15,8 @@ class _MangaCollector(ApiBase):
         clean_manga_name = manga_name.casefold().replace(" ", "-")
         clean_chapter_name = f"chapter-{chapter_num}"
         endpoint = f"{self._base_endpoint}manga/{clean_manga_name}/{clean_chapter_name}/"
-        html_site, status_code = self._get_request(endpoint)
-        soup = BeautifulSoup(html_site, "html.parser")
+        html_site, status_code = get_request(endpoint)
+        soup = soupify(html_site)
         all_images_element = soup.find_all("img", class_="wp-manga-chapter-img")
         all_images_src = [str(img.get("data-src")).replace("\t", "").replace("\n", "") for img in all_images_element]
         all_image_ids = [img.get("id") for img in all_images_element]
