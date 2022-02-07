@@ -46,3 +46,5 @@ class _MangaCollector(ApiBase):
 
         for file in image_filenames:
             os.remove(file)
+
+        return zip_file_path

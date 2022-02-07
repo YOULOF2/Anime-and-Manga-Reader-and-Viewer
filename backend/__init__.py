@@ -5,7 +5,11 @@ from backend._getAnimeVideo import _get_anime_video
 _AMS = _AnimeMangaSearch()
 _MC = _MangaCollector()
 
-__all__ = ["search_manga_by_name", "search_anime_by_name", "get_media_details", "get_manga", "get_anime_video_link"]
+__all__ = ["search_manga_by_name",
+           "search_anime_by_name",
+           "get_media_details",
+           "get_manga",
+           "get_anime_video_link"]
 
 
 def search_manga_by_name(name):
